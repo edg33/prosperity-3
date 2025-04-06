@@ -1,6 +1,6 @@
 import json
 from datamodel import OrderDepth, TradingState, Order
-from typing import List
+from typing import List 
 
 class Trader:
     def run(self, state: TradingState):
