@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 import logging
 import json
+import datetime
 
 class BaseBacktester(ABC):
     def __init__(self, csv_path: str, trader_class: Type, logger_level: int = logging.INFO):
@@ -32,11 +33,36 @@ class BaseBacktester(ABC):
         self.pnl_history: List[float] = []
         
         # Setup logging
-        logging.basicConfig(
-            level=logger_level,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
+        log_dir = 'logs'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        # Create a unique log filename based on timestamp
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        algo_name = os.path.basename(str(trader_class.__module__))
+        log_filename = f"{log_dir}/backtest_{algo_name}_{timestamp}.log"
+        
+        # Configure file handler
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setLevel(logger_level)
+        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
+        
+        # Configure logger
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logger_level)
+        
+        # Remove existing handlers if any
+        for handler in self.logger.handlers[:]:
+            self.logger.removeHandler(handler)
+            
+        # Add the file handler
+        self.logger.addHandler(file_handler)
+        
+        # Disable propagation to avoid duplicate logs
+        self.logger.propagate = False
+        
+        self.logger.info(f"Logging to {log_filename}")
         
     @abstractmethod
     def preprocess_data(self) -> pd.DataFrame:
@@ -161,6 +187,10 @@ class BaseBacktester(ABC):
                         position_value_change = -(current_prices[product] - order.price) * abs(order.quantity)
                     trade_pnl = position_value_change
                     round_pnl += trade_pnl
+                    
+                    # Log PnL information
+                    pnl_status = "PROFIT" if position_value_change > 0 else "LOSS" if position_value_change < 0 else "BREAK EVEN"
+                    self.logger.info(f"    Trade PnL: {position_value_change:.2f} ({pnl_status}) | Market price: {current_prices[product]} | New position: {self.current_position[product]}")
                     
                     # Record trade
                     self.trades_history.append({

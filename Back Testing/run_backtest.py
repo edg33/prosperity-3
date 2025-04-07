@@ -53,6 +53,7 @@ def main():
         
         print("\nBacktesting completed successfully!")
         print(f"Results saved to portfolio_value.png")
+        print(f"Check the logs directory for detailed trade logs")
         
     except Exception as e:
         print(f"Error during backtesting: {str(e)}")
