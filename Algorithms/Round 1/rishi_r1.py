@@ -15,7 +15,7 @@ class Trader:
 
     def update_price_history(self, 
                            product: str, 
-                           market_trades: Dict[str, List[Dict]], 
+                           market_trades: Dict[str, List], 
                            order_depth,
                            trader_data: Dict,
                            window_size: int) -> Tuple[float, List[float]]:
@@ -27,7 +27,7 @@ class Trader:
         current_volume = 0
         
         # First try to get VWAP from recent market trades
-        if product in market_trades and market_trades[product]:
+        if product in market_trades and isinstance(market_trades[product], list) and market_trades[product]:
             vwap, volume = self.calculate_vwap(market_trades[product])
             if volume > 0:
                 current_price = vwap
@@ -129,15 +129,12 @@ class Trader:
                     position_scale = min(1.0, abs(z_score) / 2)  # Scale position by z-score
                     max_trade_size = int(max_position * position_scale)
                     
-                    print(f"RESIN - Mean: {mean_price:.2f}, Current: {current_resin_price:.2f}, Z-score: {z_score:.2f}")
-                    
                     # Sell when price is high
                     if z_score > sell_threshold and best_bid is not None:
                         available_sell = max_trade_size + current_position
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])
                         if order_size > 0:
                             orders.append(Order(product, best_bid, -order_size))
-                            print(f"--> Selling {order_size} {product} (above mean)")
                     
                     # Buy when price is low
                     elif z_score < buy_threshold and best_ask is not None:
@@ -145,7 +142,6 @@ class Trader:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                         if order_size > 0:
                             orders.append(Order(product, best_ask, order_size))
-                            print(f"--> Buying {order_size} {product} (below mean)")
 
             # Correlation trading for KELP and SQUID_INK
             elif product in ["KELP", "SQUID_INK"] and len(kelp_prices) >= window_size and len(squid_ink_prices) >= window_size:
@@ -159,8 +155,6 @@ class Trader:
                 # Detect correlation regime
                 recent_correlation = np.mean(correlation_history[-short_window:])
                 correlation_trend = np.mean(np.diff(correlation_history[-short_window:]))
-                
-                print(f"Current correlation: {correlation:.2f}, Recent avg: {recent_correlation:.2f}, Trend: {correlation_trend:.3f}")
 
                 # Trading logic based on correlation regime
                 if abs(correlation) > correlation_threshold:
@@ -175,13 +169,11 @@ class Trader:
                                 order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                                 if order_size > 0:
                                     orders.append(Order(product, best_ask, order_size))
-                                    print(f"--> Buying {order_size} {product} (positive correlation)")
                             elif squid_trend < 0 and best_bid is not None:
                                 available_sell = max_trade_size + current_position
                                 order_size = min(available_sell, order_depth.buy_orders[best_bid])
                                 if order_size > 0:
                                     orders.append(Order(product, best_bid, -order_size))
-                                    print(f"--> Selling {order_size} {product} (positive correlation)")
 
                     elif correlation < -correlation_threshold:
                         if product == "KELP" and len(squid_ink_prices) >= 2:
@@ -191,29 +183,18 @@ class Trader:
                                 order_size = min(available_sell, order_depth.buy_orders[best_bid])
                                 if order_size > 0:
                                     orders.append(Order(product, best_bid, -order_size))
-                                    print(f"--> Selling {order_size} {product} (negative correlation)")
                             elif squid_trend < 0 and best_ask is not None:
                                 available_buy = max_trade_size - current_position
                                 order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                                 if order_size > 0:
                                     orders.append(Order(product, best_ask, order_size))
-                                    print(f"--> Buying {order_size} {product} (negative correlation)")
 
-            # Evaluate own trades for performance tracking
-            if product in own_trades:
-                for trade in own_trades[product]:
-                    print(f"Own Trade - Product: {product}; Price: {trade.price}; Quantity: {trade.quantity}; Buyer: {trade.buyer}; Seller: {trade.seller}")
-
-            # Monitor market trades to detect trends
-            if product in market_trades:
-                for trade in market_trades[product]:
-                    print(f"Market Trade - Product: {product}; Price: {trade.price}; Quantity: {trade.quantity}; Buyer: {trade.buyer}; Seller: {trade.seller}")
-
-            # Save updated data
-            result[product] = orders
+            # Save orders if any were generated
+            if orders:
+                result[product] = orders
 
         # Save trader_data as JSON string for the next iteration
         trader_data['correlation_history'] = correlation_history
         updated_trader_data = json.dumps(trader_data)
-        conversions = 1
-        return result, conversions, updated_trader_data
+        
+        return result, 1, updated_trader_data
