@@ -15,12 +15,18 @@ def run_backtest(args: Tuple[str, int, Dict]) -> Tuple[Dict, float]:
     with open(script_path, 'r') as f:
         script_content = f.read()
     
-    # Replace the parameters in the script
+    # Replace the parameters in the script while maintaining indentation
     for param, value in params.items():
-        script_content = script_content.replace(
-            f"{param} = ",  # Original parameter line
-            f"{param} = {value}  # Grid search optimized\n"
-        )
+        # Find the line with the parameter
+        lines = script_content.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{param} = "):
+                # Preserve the original indentation
+                indent = len(line) - len(line.lstrip())
+                # Replace the line with the new value
+                lines[i] = ' ' * indent + f"{param} = {value}  # Grid search optimized"
+                break
+        script_content = '\n'.join(lines)
     
     # Write the modified script to a temporary file
     temp_script = f"temp_grid_search_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.py"
@@ -115,21 +121,21 @@ def main():
     # Define a smaller parameter grid for testing
     param_grid = {
         # Window sizes (reduced options)
-        'window_size': [10],  # Main window size
-        'short_window': [3],   # Short window for regime detection
-        'resin_window': [5],  # Window size for resin mean reversion
+        'window_size': [10, 20, 30],  # Main window size
+        'short_window': [3, 5, 10],   # Short window for regime detection
+        'resin_window': [5, 10, 20],  # Window size for resin mean reversion
         
         # Trading thresholds (reduced options)
-        'buy_threshold': [-1.0],  # Z-score threshold for buying
-        'sell_threshold': [1.0],   # Z-score threshold for selling
-        'correlation_threshold': [0.2],  # Correlation threshold
+        'buy_threshold': [-1.0, -0.5, 0.0],  # Z-score threshold for buying
+        'sell_threshold': [1.0, 0.5, 0.0],   # Z-score threshold for selling
+        'correlation_threshold': [0.2, 0.3, 0.4],  # Correlation threshold
         
         # Position scaling (reduced options)
-        'position_scale_factor': [0.5]  # How aggressively to scale positions
+        'position_scale_factor': [0.5, 0.75, 1.0]  # How aggressively to scale positions
     }
     
     # Run grid search
-    script_path = "Algorithms/Round 1/rishi_r1.py"
+    script_path = "Algorithms/Round 1/tutorial_3.py"
     round_num = 1
     
     total_combinations = 1  # Just one combination for testing

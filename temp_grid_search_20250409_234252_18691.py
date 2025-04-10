@@ -7,13 +7,13 @@ class Trader:
         result = {}
         # Grid search parameters
         max_position = 50  # Position limit per product
-        window_size = 20  # Window size for price history
-        short_window = 5  # Short window for moving averages
-        resin_window = 10  # Window size for resin mean reversion
-        buy_threshold = -1.0  # Z-score threshold for buying
-        sell_threshold = 1.0  # Z-score threshold for selling
-        correlation_threshold = 0.3  # Correlation threshold
-        position_scale_factor = 0.75  # How aggressively to scale positions
+        window_size = 10  # Grid search optimized
+        short_window = 5  # Grid search optimized
+        resin_window = 20  # Grid search optimized
+        buy_threshold = 0.0  # Grid search optimized
+        sell_threshold = 0.0  # Grid search optimized
+        correlation_threshold = 0.3  # Grid search optimized
+        position_scale_factor = 1.0  # Grid search optimized
 
         # Load previous state from traderData (if available)
         try:
