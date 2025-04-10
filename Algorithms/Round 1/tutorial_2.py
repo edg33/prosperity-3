@@ -1,5 +1,5 @@
 import json
-from datamodel import OrderDepth, TradingState, Order
+from datamodel import TradingState, Order
 from typing import List 
 
 class Trader:

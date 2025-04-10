@@ -1,10 +1,7 @@
 import pandas as pd
 from typing import Dict, List, Type, Any
-import sys
 import os
 
-# Add the root directory to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datamodel import TradingState, Listing, Observation, OrderDepth
 from abc import ABC, abstractmethod
