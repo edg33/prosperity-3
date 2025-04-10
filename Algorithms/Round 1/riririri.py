@@ -172,7 +172,7 @@ class Trader:
                     trend_factor = trend / volatility if volatility > 0 else 0
                 
                 # Fair price considers both MAs and recent trend
-                fair_price = (0.7 * short_ma + 0.3 * long_ma) * (1 + 0.1 * trend_factor)
+                fair_price = (0.7 * short_ma + 0.3 * long_ma) * (1 + 0.1 * trend_factor) 
                 
                 # Position-aware spread
                 position_factor = current_position / max_position
