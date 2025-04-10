@@ -49,7 +49,7 @@ class Trader:
                 # Retrieve previous historical mean for RAINFOREST_RESIN (default to mid_price)
                 historical_mean = trader_data.get(product, mid_price)
                 # Update historical mean using exponential smoothing (alpha = 0.1)
-                alpha = 0.05
+                alpha = 0.1
                 updated_mean = alpha * mid_price + (1 - alpha) * historical_mean
 
                 print(f"[Time {state.timestamp}] Product: {product}; Best Bid: {best_bid}; "
@@ -146,8 +146,8 @@ class Trader:
                 short_prices.append(mid_price)
                 long_prices.append(mid_price)   
 
-                short_timestamps = 10
-                long_timestamps = 50
+                short_timestamps = 40
+                long_timestamps = 100
                 
                 # Keep the short_prices list to a length of 30
                 if len(short_prices) > short_timestamps:
@@ -166,14 +166,14 @@ class Trader:
                 
                 # Signal generation using moving average crossovers:
                 # Bullish signal if short MA is above long MA; bearish if below.    
-                if short_ma > long_ma * (1 + correlation_threshold):
+                if short_ma > long_ma * (1 + correlation_threshold*50):
                     # Bullish: if best ask is below the short MA, consider buying
                     if best_ask is not None and best_ask < short_ma and available_buy > 0:
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])
                         if order_size > 0:
                             orders.append(Order(product, best_bid, -order_size))   
                          
-                elif short_ma < long_ma * (1 - correlation_threshold):
+                elif short_ma < long_ma * (1 - correlation_threshold*50):
                     # Bearish: if best bid is above the short MA, consider selling
                     if best_bid is not None and best_bid > short_ma and available_sell > 0:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])

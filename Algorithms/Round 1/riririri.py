@@ -116,7 +116,7 @@ class Trader:
                 long_prices.append(mid_price)
 
                 # Keep the short_prices list to a length of 30
-                if len(short_prices) > 30:
+                if len(short_prices) > 10:
                     short_prices.pop(0)
                 # Keep the long_prices list to a length of 50
                 if len(long_prices) > 50:
@@ -148,14 +148,14 @@ class Trader:
                 # Moving average crossover strategy
                 # Signal generation using moving average crossovers:
                 # Bullish signal if short MA is above long MA; bearish if below.
-                if short_ma > long_ma:
+                if short_ma < long_ma:
                     # Bullish: if best ask is below the short MA, consider buying
                     if best_ask is not None and best_ask < short_ma and available_buy > 0:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                         if order_size > 0:
                             orders.append(Order(product, best_ask, order_size))
                             print(f"--> KELP: Bullish signal - Placing BUY order for {order_size} units at {best_ask}", end=";")
-                elif short_ma < long_ma:
+                elif short_ma > long_ma:
                     # Bearish: if best bid is above the short MA, consider selling
                     if best_bid is not None and best_bid > short_ma and available_sell > 0:
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])
