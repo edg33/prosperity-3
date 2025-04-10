@@ -90,11 +90,14 @@ class Trader:
                 short_prices.append(mid_price)
                 long_prices.append(mid_price)
 
-                # Keep the short_prices list to a length of short_window
-                if len(short_prices) > short_window:
+                short_timestamps = 30
+                long_timestamps = 50
+
+                # Keep the short_prices list to a length of 30
+                if len(short_prices) > short_timestamps:
                     short_prices.pop(0)
-                # Keep the long_prices list to a length of window_size
-                if len(long_prices) > window_size:
+                # Keep the long_prices list to a length of 50
+                if len(long_prices) > long_timestamps:
                     long_prices.pop(0)
 
                 # Compute the short and long MAs
