@@ -61,12 +61,14 @@ class Trader:
                 available_sell = max_position + current_position  # units that can be sold (if short)
 
                 # BUY: If best ask is below historical mean and we have capacity to buy
+                historical_mean = 9999
                 if best_ask is not None and best_ask < historical_mean and available_buy > 0:
                     order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                     if order_size > 0:
                         orders.append(Order(product, best_ask, order_size))
                         print(f"--> RAINFOREST_RESIN: Placing BUY order for {order_size} units at {best_ask}", end=";")
                 
+                historical_mean = 10001
                 # SELL: If best bid is above historical mean and we have capacity to sell
                 if best_bid is not None and best_bid > historical_mean and available_sell > 0:
                     order_size = min(available_sell, order_depth.buy_orders[best_bid])
@@ -82,10 +84,9 @@ class Trader:
             # ================================
             elif product == "KELP":
                 # Retrieve previous data for KELP (or initialize lists)
-                kelp_data = trader_data.get(product, {"short_prices": [], "long_prices": [], "short_long": False})
+                kelp_data = trader_data.get(product, {"short_prices": [], "long_prices": []})
                 short_prices = kelp_data.get("short_prices", [])
                 long_prices = kelp_data.get("long_prices", [])
-                short_lower_before = kelp_data.get("short_long", False)
 
                 # Append the new mid_price to each list
                 short_prices.append(mid_price)
@@ -105,16 +106,6 @@ class Trader:
                 short_ma = sum(short_prices) / len(short_prices) if short_prices else mid_price
                 long_ma = sum(long_prices) / len(long_prices) if long_prices else mid_price
 
-                # Sell signal (Can mess around with adding a percentage here)
-                sell_signal = (short_ma < long_ma) and not short_lower_before
-                if sell_signal:
-                    kelp_data["short_long"] = True
-
-                # Buy signal (Can mess around with adding a percentage here)
-                buy_signal = (short_ma > long_ma) and short_lower_before
-                if buy_signal:
-                    kelp_data["short_long"] = False
-
                 print(f"[Time {state.timestamp}] Product: {product}; Best Bid: {best_bid}; "
                       f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; "
                       f"Short MA({short_window}): {short_ma:.2f}; Long MA({window_size}): {long_ma:.2f}; "
@@ -126,20 +117,14 @@ class Trader:
 
                 # Signal generation using moving average crossovers:
                 # Bullish signal if short MA is above long MA; bearish if below.
-                # if short_ma > long_ma * (1 + correlation_threshold):
-                #     # Bullish: if best ask is below the short MA, consider buying
-                #     if best_ask is not None and best_ask < short_ma and available_buy > 0:
-                if buy_signal:
+                if short_ma > long_ma * (1 + correlation_threshold):
                     # Bullish: if best ask is below the short MA, consider buying
                     if best_ask is not None and best_ask < short_ma and available_buy > 0:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                         if order_size > 0:
                             orders.append(Order(product, best_ask, order_size))
                             print(f"--> KELP: Bullish signal - Placing BUY order for {order_size} units at {best_ask}", end=";")
-                # elif short_ma < long_ma * (1 - correlation_threshold):
-                #     # Bearish: if best bid is above the short MA, consider selling
-                #     if best_bid is not None and best_bid > short_ma and available_sell > 0:
-                elif sell_signal:
+                elif short_ma < long_ma * (1 - correlation_threshold):
                     # Bearish: if best bid is above the short MA, consider selling
                     if best_bid is not None and best_bid > short_ma and available_sell > 0:
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])

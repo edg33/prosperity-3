@@ -1,19 +1,11 @@
 import json
-from datamodel import TradingState, Order
+from datamodel import OrderDepth, TradingState, Order
 from typing import List
 
 class Trader:
     def run(self, state: TradingState):
         result = {}
-        # Grid search parameters
         max_position = 50  # Position limit per product
-        window_size = 20  # Window size for price history
-        short_window = 5  # Short window for moving averages
-        resin_window = 10  # Window size for resin mean reversion
-        buy_threshold = -1.0  # Z-score threshold for buying
-        sell_threshold = 1.0  # Z-score threshold for selling
-        correlation_threshold = 0.3  # Correlation threshold
-        position_scale_factor = 0.75  # How aggressively to scale positions
 
         # Load previous state from traderData (if available)
         try:
@@ -53,8 +45,8 @@ class Trader:
                 updated_mean = alpha * mid_price + (1 - alpha) * historical_mean
 
                 print(f"[Time {state.timestamp}] Product: {product}; Best Bid: {best_bid}; "
-                      f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; Historical Mean: {historical_mean:.2f}; "
-                      f"Updated Mean: {updated_mean:.2f}; Current Position: {current_position}")
+                    f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; Historical Mean: {historical_mean:.2f}; "
+                    f"Updated Mean: {updated_mean:.2f}; Current Position: {current_position}")
 
                 # Calculate available capacity based on current position
                 available_buy = max_position - current_position   # units that can be bought
@@ -82,43 +74,29 @@ class Trader:
             # ================================
             elif product == "KELP":
                 # Retrieve previous data for KELP (or initialize lists)
-                kelp_data = trader_data.get(product, {"short_prices": [], "long_prices": [], "short_long": False})
+                kelp_data = trader_data.get(product, {"short_prices": [], "long_prices": []})
                 short_prices = kelp_data.get("short_prices", [])
                 long_prices = kelp_data.get("long_prices", [])
-                short_lower_before = kelp_data.get("short_long", False)
 
                 # Append the new mid_price to each list
                 short_prices.append(mid_price)
                 long_prices.append(mid_price)
 
-                short_timestamps = 30
-                long_timestamps = 50
-
                 # Keep the short_prices list to a length of 30
-                if len(short_prices) > short_timestamps:
+                if len(short_prices) > 30:
                     short_prices.pop(0)
                 # Keep the long_prices list to a length of 50
-                if len(long_prices) > long_timestamps:
+                if len(long_prices) > 50:
                     long_prices.pop(0)
 
                 # Compute the short and long MAs
-                short_ma = sum(short_prices) / len(short_prices) if short_prices else mid_price
-                long_ma = sum(long_prices) / len(long_prices) if long_prices else mid_price
-
-                # Sell signal (Can mess around with adding a percentage here)
-                sell_signal = (short_ma < long_ma) and not short_lower_before
-                if sell_signal:
-                    kelp_data["short_long"] = True
-
-                # Buy signal (Can mess around with adding a percentage here)
-                buy_signal = (short_ma > long_ma) and short_lower_before
-                if buy_signal:
-                    kelp_data["short_long"] = False
+                short_ma = sum(short_prices) / len(short_prices)
+                long_ma = sum(long_prices) / len(long_prices)
 
                 print(f"[Time {state.timestamp}] Product: {product}; Best Bid: {best_bid}; "
-                      f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; "
-                      f"Short MA({short_window}): {short_ma:.2f}; Long MA({window_size}): {long_ma:.2f}; "
-                      f"Current Position: {current_position}")
+                    f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; "
+                    f"Short MA(30): {short_ma:.2f}; Long MA(50): {long_ma:.2f}; "
+                    f"Current Position: {current_position}")
 
                 # Calculate available capacity based on current position
                 available_buy = max_position - current_position
@@ -126,20 +104,14 @@ class Trader:
 
                 # Signal generation using moving average crossovers:
                 # Bullish signal if short MA is above long MA; bearish if below.
-                # if short_ma > long_ma * (1 + correlation_threshold):
-                #     # Bullish: if best ask is below the short MA, consider buying
-                #     if best_ask is not None and best_ask < short_ma and available_buy > 0:
-                if buy_signal:
+                if short_ma > long_ma:
                     # Bullish: if best ask is below the short MA, consider buying
                     if best_ask is not None and best_ask < short_ma and available_buy > 0:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                         if order_size > 0:
                             orders.append(Order(product, best_ask, order_size))
                             print(f"--> KELP: Bullish signal - Placing BUY order for {order_size} units at {best_ask}", end=";")
-                # elif short_ma < long_ma * (1 - correlation_threshold):
-                #     # Bearish: if best bid is above the short MA, consider selling
-                #     if best_bid is not None and best_bid > short_ma and available_sell > 0:
-                elif sell_signal:
+                elif short_ma < long_ma:
                     # Bearish: if best bid is above the short MA, consider selling
                     if best_bid is not None and best_bid > short_ma and available_sell > 0:
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])
