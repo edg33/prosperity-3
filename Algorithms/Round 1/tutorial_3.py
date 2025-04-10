@@ -5,15 +5,7 @@ from typing import List
 class Trader:
     def run(self, state: TradingState):
         result = {}
-        # Grid search parameters
         max_position = 50  # Position limit per product
-        window_size = 20  # Window size for price history
-        short_window = 5  # Short window for moving averages
-        resin_window = 10  # Window size for resin mean reversion
-        buy_threshold = -1.0  # Z-score threshold for buying
-        sell_threshold = 1.0  # Z-score threshold for selling
-        correlation_threshold = 0.3  # Correlation threshold
-        position_scale_factor = 0.75  # How aggressively to scale positions
 
         # Load previous state from traderData (if available)
         try:
@@ -101,12 +93,12 @@ class Trader:
                     long_prices.pop(0)
 
                 # Compute the short and long MAs
-                short_ma = sum(short_prices) / len(short_prices) if short_prices else mid_price
-                long_ma = sum(long_prices) / len(long_prices) if long_prices else mid_price
+                short_ma = sum(short_prices) / len(short_prices)
+                long_ma = sum(long_prices) / len(long_prices)
 
                 print(f"[Time {state.timestamp}] Product: {product}; Best Bid: {best_bid}; "
                       f"Best Ask: {best_ask}; Mid Price: {mid_price:.2f}; "
-                      f"Short MA({short_window}): {short_ma:.2f}; Long MA({window_size}): {long_ma:.2f}; "
+                      f"Short MA(30): {short_ma:.2f}; Long MA(50): {long_ma:.2f}; "
                       f"Current Position: {current_position}")
 
                 # Calculate available capacity based on current position
@@ -115,14 +107,14 @@ class Trader:
 
                 # Signal generation using moving average crossovers:
                 # Bullish signal if short MA is above long MA; bearish if below.
-                if short_ma > long_ma * (1 + correlation_threshold):
+                if short_ma > long_ma:
                     # Bullish: if best ask is below the short MA, consider buying
                     if best_ask is not None and best_ask < short_ma and available_buy > 0:
                         order_size = min(available_buy, -order_depth.sell_orders[best_ask])
                         if order_size > 0:
                             orders.append(Order(product, best_ask, order_size))
                             print(f"--> KELP: Bullish signal - Placing BUY order for {order_size} units at {best_ask}", end=";")
-                elif short_ma < long_ma * (1 - correlation_threshold):
+                elif short_ma < long_ma:
                     # Bearish: if best bid is above the short MA, consider selling
                     if best_bid is not None and best_bid > short_ma and available_sell > 0:
                         order_size = min(available_sell, order_depth.buy_orders[best_bid])
