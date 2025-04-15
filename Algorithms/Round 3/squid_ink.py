@@ -2,7 +2,24 @@ import json
 import numpy as np
 from datamodel import TradingState, Order
 from typing import List, Dict
-from scipy.stats import norm
+
+def erf(x: float) -> float:
+    """Numerical approximation to the error function."""
+    # Constants
+    a1 = 0.254829592
+    a2 = -0.284496736
+    a3 = 1.421413741
+    a4 = -1.453152027
+    a5 = 1.061405429
+    p = 0.3275911
+
+    sign = 1 if x >= 0 else -1
+    x = abs(x)
+
+    t = 1.0 / (1.0 + p * x)
+    y = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * np.exp(-x * x))
+
+    return sign * y
 
 
 def is_in_stable_pocket(prices: List[float], window: int, std_threshold: float) -> bool:
@@ -15,10 +32,16 @@ def is_in_stable_pocket(prices: List[float], window: int, std_threshold: float) 
     return rolling_std > std_threshold and abs(current_price - rolling_mean) < rolling_std
 
 
+def normal_cdf(x: float, mean: float, std: float) -> float:
+    """Approximate the CDF of a normal distribution using numpy (via erf)."""
+    z = (x - mean) / (std * np.sqrt(2))
+    return 0.5 * (1 + erf(z))
+
+
 def pocket_transition_risk(t: int, mean_len: float, std_len: float, horizon: int = 10) -> float:
     """Probability that the pocket ends in the next `horizon` timesteps."""
-    p_now = norm.cdf(t, loc=mean_len, scale=std_len)
-    p_future = norm.cdf(t + horizon, loc=mean_len, scale=std_len)
+    p_now = normal_cdf(t, mean_len, std_len)
+    p_future = normal_cdf(t + horizon, mean_len, std_len)
     return p_future - p_now
 
 
@@ -90,7 +113,6 @@ class Trader:
                     sell_qty = min(order_size, current_position + max_position)
                     orders.append(Order(product, best_bid, -sell_qty))
             else:
-                # Flatten near transitions
                 time_in_pocket = 0
                 if current_position > 0:
                     orders.append(Order(product, best_bid, -current_position))
@@ -107,5 +129,5 @@ class Trader:
             result[product] = orders
 
         updated_trader_data = json.dumps(trader_data)
-        conversions = 1  # If required by your engine interface
+        conversions = 1
         return result, conversions, updated_trader_data
