@@ -224,57 +224,84 @@ class MarketMakingStrategy(Strategy):
     def load(self, data: JSON) -> None:
         self.window = deque(data)
 
+
 class RainforestResinStrategy(MarketMakingStrategy):
+    def __init__(self, symbol: Symbol, limit: int) -> None:
+        super().__init__(symbol, limit)
+
     def get_true_value(self, state: TradingState) -> int:
-        return 10_000  # Known fair value
+        order_depth = state.order_depths[self.symbol]
+        best_bid = max(order_depth.buy_orders.keys(), default=None)
+        best_ask = min(order_depth.sell_orders.keys(), default=None)
+        mid_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
+
+        return 10_000
 
 
 class KelpStrategy(MarketMakingStrategy):
     def __init__(self, symbol: Symbol, limit: int) -> None:
         super().__init__(symbol, limit)
-        self.short_window = deque(maxlen=5)
-        self.long_window = deque(maxlen=20)
+        self.short_prices = []
+        self.long_prices = []
+        self.short_timestamps = 10
+        self.long_timestamps = 50
 
     def get_true_value(self, state: TradingState) -> int:
         order_depth = state.order_depths[self.symbol]
-
-        best_bid = max(order_depth.buy_orders.keys(), default=0)
-        best_ask = min(order_depth.sell_orders.keys(), default=0)
+        best_bid = max(order_depth.buy_orders.keys(), default=None)
+        best_ask = min(order_depth.sell_orders.keys(), default=None)
         mid_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
 
-        self.short_window.append(mid_price)
-        self.long_window.append(mid_price)
+        self.short_prices.append(mid_price)
+        self.long_prices.append(mid_price)
 
-        short_avg = sum(self.short_window) / len(self.short_window)
-        long_avg = sum(self.long_window) / len(self.long_window)
+        if len(self.short_prices) > self.short_timestamps:
+            self.short_prices.pop(0)
+        if len(self.long_prices) > self.long_timestamps:
+            self.long_prices.pop(0)
 
-        # Basic signal interpretation:
-        if len(self.short_window) >= 5 and len(self.long_window) >= 20:
-            if short_avg > long_avg:
-                return mid_price + 2  # upward bias
-            elif short_avg < long_avg:
-                return mid_price - 2  # downward bias
+        short_ma = sum(self.short_prices) / len(self.short_prices)
+        long_ma = sum(self.long_prices) / len(self.long_prices)
 
-        return round(mid_price)
+        if short_ma > long_ma:
+            return int(mid_price + 2)
+        elif short_ma < long_ma:
+            return int(mid_price - 2)
+        return int(round(mid_price))
 
 
 class SquidInkStrategy(MarketMakingStrategy):
     def __init__(self, symbol: Symbol, limit: int) -> None:
         super().__init__(symbol, limit)
-        self.prices = deque(maxlen=20)
+        self.short_prices = []
+        self.long_prices = []
+        self.short_timestamps = 10
+        self.long_timestamps = 50
 
     def get_true_value(self, state: TradingState) -> int:
         order_depth = state.order_depths[self.symbol]
-
-        best_bid = max(order_depth.buy_orders.keys(), default=0)
-        best_ask = min(order_depth.sell_orders.keys(), default=0)
+        best_bid = max(order_depth.buy_orders.keys(), default=None)
+        best_ask = min(order_depth.sell_orders.keys(), default=None)
         mid_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
 
-        self.prices.append(mid_price)
-        mean_price = sum(self.prices) / len(self.prices) if self.prices else mid_price
+        self.short_prices.append(mid_price)
+        self.long_prices.append(mid_price)
 
-        # Mean reversion assumption
-        return round(mean_price)
+        if len(self.short_prices) > self.short_timestamps:
+            self.short_prices.pop(0)
+        if len(self.long_prices) > self.long_timestamps:
+            self.long_prices.pop(0)
+
+        short_ma = sum(self.short_prices) / len(self.short_prices)
+        long_ma = sum(self.long_prices) / len(self.long_prices)
+
+        if short_ma > long_ma:
+            return int(mid_price + 2)
+        elif short_ma < long_ma:
+            return int(mid_price - 2)
+        return int(round(mid_price))
+
+
 
 
 class Trader:
